@@ -32,4 +32,4 @@ make status
 
 In interactive mode, the iterator starts before page 1, so pressing `n` first copies page 1.
 
-Press `q` or `Esc` to quit cleanly from the selection screen or the interactive page screen.
+Press `q` to quit cleanly from the selection screen or the interactive page screen.

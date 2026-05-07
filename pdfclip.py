@@ -21,7 +21,7 @@ class AppError(Exception):
 
 def require_tool(name):
     if not shutil.which(name):
-        raise AppError(f"outil introuvable: {name}")
+        raise AppError(f"missing tool: {name}")
 
 
 def run(cmd, input_text=None):
@@ -108,7 +108,7 @@ def page_count(pdf_path):
     for line in output.splitlines():
         if line.startswith("Pages:"):
             return int(line.split(":", 1)[1].strip())
-    raise AppError("impossible de lire le nombre de pages du PDF")
+    raise AppError("could not read the PDF page count")
 
 
 def load_state(pdf_path, images_dir=None, dpi=DEFAULT_DPI):
@@ -138,11 +138,11 @@ def load_state_from_dir(images_dir, dpi=DEFAULT_DPI):
     images_dir = images_dir.resolve()
     existing = parse_simple_yaml(state_path(images_dir))
     if not existing:
-        raise AppError(f"dossier pdfclip invalide: {images_dir}")
+        raise AppError(f"invalid pdfclip folder: {images_dir}")
 
     pdf_path = Path(str(existing.get("pdf", ""))).expanduser()
     if not pdf_path.exists():
-        raise AppError(f"PDF introuvable pour ce dossier: {pdf_path}")
+        raise AppError(f"PDF not found for this folder: {pdf_path}")
 
     return load_state(pdf_path, images_dir, dpi)
 
@@ -155,7 +155,7 @@ def load_last_state(dpi=DEFAULT_DPI):
         if len(projects) == 1:
             write_global_state(projects[0]["images_dir"])
             return projects[0]
-        raise AppError("aucun dossier actif; lance 'make' pour en choisir un ou 'make import PDF=\"...\"'")
+        raise AppError('no active folder; run "make" to choose one or "make import PDF=..."')
     return load_state_from_dir(Path(str(images_dir)), dpi)
 
 
@@ -215,13 +215,13 @@ def render_images(pdf_path, images_dir, dpi=DEFAULT_DPI, force=False):
 def import_pdf(pdf_path, images_dir=None, dpi=DEFAULT_DPI):
     pdf_path = pdf_path.resolve()
     if not pdf_path.exists():
-        raise AppError(f"PDF introuvable: {pdf_path}")
+        raise AppError(f"PDF not found: {pdf_path}")
 
     images_dir = (images_dir or default_images_dir(pdf_path)).resolve()
     if images_dir.exists():
         raise AppError(
-            f"le dossier existe déjà: {images_dir}\n"
-            "Import annulé pour éviter d'écraser un travail existant."
+            f"folder already exists: {images_dir}\n"
+            "Import stopped to avoid overwriting existing work."
         )
 
     count, rendered = render_images(pdf_path, images_dir, dpi, force=False)
@@ -246,7 +246,7 @@ def ensure_image_ready(state):
         return
     render_images(pdf_path, images_dir, int(state["dpi"]), force=False)
     if not page_image_path(images_dir, page).exists():
-        raise AppError(f"image manquante pour la page {page}")
+        raise AppError(f"missing image for page {page}")
 
 
 def copy_text_to_clipboard(text):
@@ -261,7 +261,7 @@ def copy_text_to_clipboard(text):
             check=True,
         )
     except subprocess.CalledProcessError as exc:
-        message = exc.stderr.strip() or "pbcopy a refusé l'accès au presse-papier"
+        message = exc.stderr.strip() or "pbcopy could not access the clipboard"
         raise AppError(message)
 
 
@@ -292,12 +292,12 @@ def copy_current(state):
     mode = state["mode"]
     if mode == "text":
         chars = copy_page_text(state)
-        return f"page {page} copiée en texte ({chars} caractères)"
+        return f"copied page {page} as text ({chars} characters)"
 
     ensure_image_ready(state)
     image_path = page_image_path(Path(state["images_dir"]), page)
     copy_image_to_clipboard(image_path)
-    return f"page {page} copiée en image ({image_path.name})"
+    return f"copied page {page} as image ({image_path.name})"
 
 
 def move_and_copy(state, delta):
@@ -319,23 +319,23 @@ def set_mode(state, mode=None):
     if mode is None:
         mode = "text" if state["mode"] == "image" else "image"
     if mode not in VALID_MODES:
-        raise AppError("mode invalide: attendu 'image' ou 'text'")
+        raise AppError("invalid mode: expected 'image' or 'text'")
     state["mode"] = mode
     write_state(Path(state["images_dir"]), state)
-    return f"mode actif: {mode}"
+    return f"active mode: {mode}"
 
 
 def print_status(state):
     images_dir = Path(state["images_dir"])
     print(f"PDF: {state['pdf']}")
-    print(f"Dossier: {images_dir}")
+    print(f"Folder: {images_dir}")
     if int(state["current_page"]) < 1:
-        print(f"Page courante: aucune")
-        print(f"Prochaine page: 1 / {state['page_count']}")
+        print("Current page: none")
+        print(f"Next page: 1 / {state['page_count']}")
     else:
         print(f"Page: {state['current_page']} / {state['page_count']}")
     print(f"Mode: {state['mode']}")
-    print(f"Images générées: {rendered_page_count(images_dir)} / {state['page_count']}")
+    print(f"Rendered images: {rendered_page_count(images_dir)} / {state['page_count']}")
 
 
 def discover_projects(root):
@@ -360,25 +360,49 @@ def discover_unimported_pdfs(root):
 
 
 def project_label(state):
-    pdf_name = Path(state["pdf"]).name
     folder_name = Path(state["images_dir"]).name
-    return (
-        f"{folder_name}  "
-        f"{page_label(state)}  "
-        f"mode {state['mode']}  "
-        f"({pdf_name})"
-    )
+    return f"{folder_name}"
 
 
 def page_label(state):
     current = int(state["current_page"])
     if current < 1:
-        return f"avant page 1/{state['page_count']}"
+        return f"before page 1/{state['page_count']}"
     return f"page {current}/{state['page_count']}"
 
 
 def pdf_label(pdf_path):
-    return f"{pdf_path.name}  à importer"
+    return pdf_path.name
+
+
+def print_selector(projects, pdfs):
+    print("pdf-page-clipper")
+    print()
+
+    print("Imported PDFs")
+    if projects:
+        for index, state in enumerate(projects, start=1):
+            print(f"  {index}. {project_label(state)}")
+            print(f"     PDF: {Path(state['pdf']).name}")
+            print(f"     Position: {page_label(state)}")
+            print(f"     Mode: {state['mode']}")
+    else:
+        print("  none")
+
+    print()
+    print("PDFs to import")
+    offset = len(projects)
+    if pdfs:
+        for index, pdf_path in enumerate(pdfs, start=offset + 1):
+            print(f"  {index}. {pdf_label(pdf_path)}")
+            print(f"     Folder: {default_images_dir(pdf_path).name}")
+    else:
+        print("  none")
+
+    print()
+    print("Actions")
+    print("  q  quit")
+    print()
 
 
 def read_key():
@@ -396,7 +420,7 @@ def read_key():
 
 def key_name(key):
     if key == "\x1b":
-        return "Échap"
+        return "Esc"
     if key in {"\n", "\r"}:
         return ""
     return key
@@ -420,28 +444,27 @@ def prompt_with_default(prompt, default):
 
 
 def help_text(state):
-    navigation = ["  n  next: copie la page suivante"]
+    navigation = ["  n  next: copy the next page"]
     if int(state["current_page"]) >= 1:
         navigation.extend(
             [
-                "  p  previous: copie la page précédente",
-                "  c  current: recopie la page courante",
+                "  p  previous: copy the previous page",
+                "  c  current: copy the current page again",
             ]
         )
 
     return (
         """
-Touches:
+Keys:
 """
         + "\n".join(navigation)
         + """
-  g  set page: modifier le numéro courant
-  m  switch mode: alterne image / text
-  r  render: génère les images manquantes
-  s  status: affiche l'état
-  h  help: affiche cette aide
-  q  quit: quitte proprement
-  Échap  quit: quitte proprement
+  g  set page: change the current page
+  m  switch mode: toggle what gets copied, image or extracted text
+  r  render: create any missing page images in the PDF folder
+  s  status: show the current state
+  h  help: show this help
+  q  quit: exit cleanly
 """
     )
 
@@ -464,7 +487,7 @@ def interactive_state(state):
 
         try:
             if key in {"q", "\x1b"}:
-                print("fin")
+                print("done")
                 return
             if key == "h":
                 print(help_text(state))
@@ -488,17 +511,17 @@ def interactive_state(state):
                 )
                 state["page_count"] = total
                 write_state(Path(state["images_dir"]), state)
-                print(f"images prêtes: {total - rendered} existantes, {rendered} générées")
+                print(f"images ready: {total - rendered} existing, {rendered} rendered")
             elif key == "s":
                 print_status(state)
             elif key in {"\n", "\r", " "}:
                 continue
             else:
-                print("touche inconnue, h pour l'aide")
+                print("unknown key, press h for help")
         except ValueError:
-            print("numéro de page invalide")
+            print("invalid page number")
         except AppError as exc:
-            print(f"erreur: {exc}")
+            print(f"error: {exc}")
 
 
 def interactive(pdf_path, images_dir=None, dpi=DEFAULT_DPI):
@@ -513,38 +536,30 @@ def choose_project(dpi=DEFAULT_DPI):
     choices.extend(("pdf", pdf_path) for pdf_path in pdfs)
 
     if not choices:
-        print("Aucun dossier pdfclip ou PDF à importer trouvé.")
+        print("No pdfclip folder or PDF to import found.")
         return
 
-    print("Dossiers et PDF disponibles:")
-    for index, (kind, value) in enumerate(choices, start=1):
-        if kind == "project":
-            label = project_label(value)
-        else:
-            label = pdf_label(value)
-        print(f"  {index}. {label}")
-    print("  q. quitter")
-    print("  Échap. quitter")
+    print_selector(projects, pdfs)
 
     default = 1
     raw_choice = read_choice(default, len(choices))
     if raw_choice is None:
-        print("fin")
+        print("done")
         return
 
     try:
         choice = int(raw_choice)
     except ValueError:
-        raise AppError("choix invalide")
+        raise AppError("invalid choice")
 
     if choice < 1 or choice > len(choices):
-        raise AppError("choix hors liste")
+        raise AppError("choice out of range")
 
     kind, value = choices[choice - 1]
     if kind == "pdf":
         state, rendered = import_pdf(value, None, dpi)
-        print(f"dossier créé: {state['images_dir']}")
-        print(f"images générées: {rendered} / {state['page_count']}")
+        print(f"created folder: {state['images_dir']}")
+        print(f"rendered images: {rendered} / {state['page_count']}")
     else:
         state = value
 
@@ -553,7 +568,7 @@ def choose_project(dpi=DEFAULT_DPI):
 
 def read_choice(default, count):
     if count <= 9:
-        print(f"Choix [{default}] > ", end="", flush=True)
+        print(f"Choice [{default}] > ", end="", flush=True)
         key = read_key()
         print(key_name(key))
         if key in {"q", "\x1b"}:
@@ -562,7 +577,7 @@ def read_choice(default, count):
             return str(default)
         return key
 
-    raw_choice = prompt_with_default("Choix", default)
+    raw_choice = prompt_with_default("Choice", default)
     if raw_choice in {"q", "\x1b"}:
         return None
     return raw_choice
@@ -571,36 +586,36 @@ def read_choice(default, count):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="pdfclip.py",
-        description="Copier rapidement des pages PDF en image ou en texte.",
+        description="Copy PDF pages quickly as images or text.",
     )
-    parser.add_argument("--dir", dest="images_dir", type=Path, help="dossier des images et de l'état")
-    parser.add_argument("--dpi", type=int, default=DEFAULT_DPI, help=f"résolution des images (défaut: {DEFAULT_DPI})")
+    parser.add_argument("--dir", dest="images_dir", type=Path, help="image and state folder")
+    parser.add_argument("--dpi", type=int, default=DEFAULT_DPI, help=f"image resolution (default: {DEFAULT_DPI})")
 
     subparsers = parser.add_subparsers(dest="command")
 
-    open_cmd = subparsers.add_parser("open", help="ouvrir un dossier ou PDF en mode interactif")
+    open_cmd = subparsers.add_parser("open", help="open a folder or PDF in interactive mode")
     open_cmd.add_argument("target", nargs="?", type=Path)
 
-    render_cmd = subparsers.add_parser("render", help="générer les images du PDF")
+    render_cmd = subparsers.add_parser("render", help="render PDF images")
     render_cmd.add_argument("pdf", type=Path)
-    render_cmd.add_argument("--force", action="store_true", help="regénérer les images existantes")
+    render_cmd.add_argument("--force", action="store_true", help="render existing images again")
 
-    import_cmd = subparsers.add_parser("import", help="créer le dossier dédié à un PDF")
+    import_cmd = subparsers.add_parser("import", help="create the dedicated folder for a PDF")
     import_cmd.add_argument("pdf", type=Path)
 
     for name in ["next", "previous", "current", "status"]:
         cmd = subparsers.add_parser(name)
         cmd.add_argument("target", nargs="?", type=Path)
 
-    copy_cmd = subparsers.add_parser("copy", help="copier une page précise")
+    copy_cmd = subparsers.add_parser("copy", help="copy a specific page")
     copy_cmd.add_argument("page", type=int)
     copy_cmd.add_argument("target", nargs="?", type=Path)
 
-    set_cmd = subparsers.add_parser("set", help="changer la page courante et la copier")
+    set_cmd = subparsers.add_parser("set", help="set the current page and copy it")
     set_cmd.add_argument("page", type=int)
     set_cmd.add_argument("target", nargs="?", type=Path)
 
-    mode_cmd = subparsers.add_parser("mode", help="changer ou afficher le mode")
+    mode_cmd = subparsers.add_parser("mode", help="change or show the mode")
     mode_cmd.add_argument("mode", nargs="?", choices=sorted(VALID_MODES))
     mode_cmd.add_argument("target", nargs="?", type=Path)
 
@@ -617,8 +632,8 @@ def dispatch(args):
 
     if args.command == "import":
         state, rendered = import_pdf(args.pdf, args.images_dir, args.dpi)
-        print(f"dossier créé: {state['images_dir']}")
-        print(f"images générées: {rendered} / {state['page_count']}")
+        print(f"created folder: {state['images_dir']}")
+        print(f"rendered images: {rendered} / {state['page_count']}")
         return
 
     if args.command == "render":
@@ -628,8 +643,8 @@ def dispatch(args):
         state["dpi"] = args.dpi
         write_state(Path(state["images_dir"]), state)
         write_global_state(state["images_dir"])
-        print(f"dossier prêt: {state['images_dir']}")
-        print(f"images: {total - rendered} existantes, {rendered} générées")
+        print(f"ready folder: {state['images_dir']}")
+        print(f"images: {total - rendered} existing, {rendered} rendered")
         return
 
     if args.command is None:
@@ -672,10 +687,10 @@ def main(argv=None):
         dispatch(args)
         return 0
     except AppError as exc:
-        print(f"erreur: {exc}", file=sys.stderr)
+        print(f"error: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        print("\ninterrompu", file=sys.stderr)
+        print("\ninterrupted", file=sys.stderr)
         return 130
 
 
