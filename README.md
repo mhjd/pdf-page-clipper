@@ -35,12 +35,12 @@ Select a PDF, then use the keys shown by the app.
 Common keys:
 
 - `n`: copy the next page
-- `p`: copy the previous page, available after the first page
-- `c`: copy the current page again, available after the first page
+- `p`: copy the previous page, available from page 2
+- `c`: copy the current page again, available from page 1
 - `g`: jump to a page and copy it
 - `m`: switch between image copying and extracted-text copying
 - `s`: show the current state
 - `h`: show help
 - `q`: quit cleanly
 
-The iterator starts at page 0, so pressing `n` first copies page 1. The `p` and `c` keys appear after the first page has been copied.
+The iterator starts at page 0, so pressing `n` first copies page 1. The `c` key appears on page 1, and `p` appears on page 2.

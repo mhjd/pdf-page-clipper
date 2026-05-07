@@ -256,13 +256,22 @@ def move_and_copy(name, state, documents, delta):
     current = int(state["current_page"])
     if current < 1 and delta <= 0:
         return None
+    if current <= 1 and delta < 0:
+        return None
     state["current_page"] = clamp_page(current + delta, int(state["page_count"]))
     save_document(name, state, documents)
     return copy_current(name, state)
 
 
+def validate_page(page, page_count):
+    page = int(page)
+    if page < 1 or page > int(page_count):
+        raise AppError(f"page must be between 1 and {page_count}")
+    return page
+
+
 def set_page(name, state, documents, page):
-    state["current_page"] = clamp_page(page, int(state["page_count"]))
+    state["current_page"] = validate_page(page, int(state["page_count"]))
     save_document(name, state, documents)
     return copy_current(name, state)
 
@@ -286,6 +295,10 @@ def page_label(state):
 
 def has_current_page(state):
     return int(state["current_page"]) >= 1
+
+
+def has_previous_page(state):
+    return int(state["current_page"]) >= 2
 
 
 def print_status(name, state):
@@ -358,13 +371,10 @@ def prompt_with_default(prompt, default):
 
 def help_text(state):
     navigation = ["  n  next: copy the next page"]
+    if has_previous_page(state):
+        navigation.append("  p  previous: copy the previous page")
     if has_current_page(state):
-        navigation.extend(
-            [
-                "  p  previous: copy the previous page",
-                "  c  current: copy the current page again",
-            ]
-        )
+        navigation.append("  c  current: copy the current page again")
 
     return (
         """
