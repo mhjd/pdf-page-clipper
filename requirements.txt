@@ -1,0 +1,5 @@
+# No third-party Python package is required.
+#
+# System tools expected by pdfclip:
+# - poppler: pdfinfo, pdftoppm, pdftotext
+# - macOS clipboard tools: pbcopy, osascript

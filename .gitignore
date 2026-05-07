@@ -1,0 +1,19 @@
+# Local runtime state
+.pdfclip.yml
+*_pages/
+
+# Input documents and generated assets
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+
+# Python/cache files
+__pycache__/
+*.py[cod]
+
+# macOS/editor noise
+.DS_Store
+*.swp
