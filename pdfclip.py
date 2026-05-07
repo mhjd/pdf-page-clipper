@@ -518,8 +518,8 @@ def main(argv=None):
         print(f"error: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        print("\ninterrupted", file=sys.stderr)
-        return 130
+        print("\ndone")
+        return 0
 
 
 if __name__ == "__main__":
