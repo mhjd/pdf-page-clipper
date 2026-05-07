@@ -280,15 +280,19 @@ def set_mode(name, state, documents, mode=None):
 def page_label(state):
     current = int(state["current_page"])
     if current < 1:
-        return f"before page 1/{state['page_count']}"
+        return f"page 0/{state['page_count']}"
     return f"page {current}/{state['page_count']}"
+
+
+def has_current_page(state):
+    return int(state["current_page"]) >= 1
 
 
 def print_status(name, state):
     print(f"PDF: {name}")
     print(f"Folder: {PDF_DIR}/")
-    if int(state["current_page"]) < 1:
-        print("Current page: none")
+    if not has_current_page(state):
+        print(f"Page: 0 / {state['page_count']}")
         print(f"Next page: 1 / {state['page_count']}")
     else:
         print(f"Page: {state['current_page']} / {state['page_count']}")
@@ -354,7 +358,7 @@ def prompt_with_default(prompt, default):
 
 def help_text(state):
     navigation = ["  n  next: copy the next page"]
-    if int(state["current_page"]) >= 1:
+    if has_current_page(state):
         navigation.extend(
             [
                 "  p  previous: copy the previous page",
@@ -396,6 +400,7 @@ def interactive_document(name, state, documents):
         print(key_name(key))
 
         try:
+            had_current_page = has_current_page(state)
             if key in {"q", "\x1b"}:
                 print("done")
                 return
@@ -418,6 +423,9 @@ def interactive_document(name, state, documents):
                 continue
             else:
                 print("unknown key, press h for help")
+
+            if not had_current_page and has_current_page(state):
+                print(help_text(state))
         except ValueError:
             print("invalid page number")
         except AppError as exc:

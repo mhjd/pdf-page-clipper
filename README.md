@@ -43,4 +43,4 @@ Common keys:
 - `h`: show help
 - `q`: quit cleanly
 
-The iterator starts before page 1, so pressing `n` first copies page 1.
+The iterator starts at page 0, so pressing `n` first copies page 1. The `p` and `c` keys appear after the first page has been copied.
