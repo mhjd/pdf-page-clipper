@@ -287,7 +287,7 @@ set the clipboard to (read imageFile as TIFF picture)
 def copy_current(state):
     page = int(state["current_page"])
     if page < 1:
-        raise AppError("aucune page courante; appuie sur n pour copier la page 1")
+        return None
 
     mode = state["mode"]
     if mode == "text":
@@ -303,7 +303,7 @@ def copy_current(state):
 def move_and_copy(state, delta):
     current = int(state["current_page"])
     if current < 1 and delta <= 0:
-        raise AppError("aucune page précédente; appuie sur n pour copier la page 1")
+        return None
     state["current_page"] = clamp_page(current + delta, int(state["page_count"]))
     write_state(Path(state["images_dir"]), state)
     return copy_current(state)
@@ -395,12 +395,22 @@ def prompt_with_default(prompt, default):
         readline.set_pre_input_hook()
 
 
-def help_text():
-    return """
+def help_text(state):
+    navigation = ["  n  next: copie la page suivante"]
+    if int(state["current_page"]) >= 1:
+        navigation.extend(
+            [
+                "  p  previous: copie la page précédente",
+                "  c  current: recopie la page courante",
+            ]
+        )
+
+    return (
+        """
 Touches:
-  n  next: copie la page suivante
-  p  previous: copie la page précédente
-  c  current: recopie la page courante
+"""
+        + "\n".join(navigation)
+        + """
   g  set page: modifier le numéro courant
   m  switch mode: alterne image / text
   r  render: génère les images manquantes
@@ -408,13 +418,19 @@ Touches:
   h  help: affiche cette aide
   q  quit
 """
+    )
+
+
+def print_action(message):
+    if message:
+        print(message)
 
 
 def interactive_state(state):
     write_global_state(state["images_dir"])
     print("pdfclip")
     print_status(state)
-    print(help_text())
+    print(help_text(state))
 
     while True:
         print(f"[{state['mode']}] {page_label(state)} > ", end="", flush=True)
@@ -426,18 +442,18 @@ def interactive_state(state):
                 print("fin")
                 return
             if key == "h":
-                print(help_text())
+                print(help_text(state))
             elif key == "n":
-                print(move_and_copy(state, 1))
+                print_action(move_and_copy(state, 1))
             elif key == "p":
-                print(move_and_copy(state, -1))
+                print_action(move_and_copy(state, -1))
             elif key == "c":
-                print(copy_current(state))
+                print_action(copy_current(state))
             elif key == "g":
                 raw_value = prompt_with_default("Page", state["current_page"])
-                print(set_page(state, int(raw_value)))
+                print_action(set_page(state, int(raw_value)))
             elif key == "m":
-                print(set_mode(state))
+                print_action(set_mode(state))
             elif key == "r":
                 total, rendered = render_images(
                     Path(state["pdf"]),
@@ -561,17 +577,17 @@ def dispatch(args):
     write_global_state(state["images_dir"])
 
     if args.command == "next":
-        print(move_and_copy(state, 1))
+        print_action(move_and_copy(state, 1))
     elif args.command == "previous":
-        print(move_and_copy(state, -1))
+        print_action(move_and_copy(state, -1))
     elif args.command == "current":
-        print(copy_current(state))
+        print_action(copy_current(state))
     elif args.command == "copy":
-        print(set_page(state, args.page))
+        print_action(set_page(state, args.page))
     elif args.command == "set":
-        print(set_page(state, args.page))
+        print_action(set_page(state, args.page))
     elif args.command == "mode":
-        print(set_mode(state, args.mode))
+        print_action(set_mode(state, args.mode))
     elif args.command == "status":
         print_status(state)
     else:
