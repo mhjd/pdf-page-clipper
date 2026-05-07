@@ -286,6 +286,12 @@ def set_mode(name, state, documents, mode=None):
     return f"active mode for {name}: {mode}"
 
 
+def reset_page(name, state, documents):
+    state["current_page"] = 0
+    save_document(name, state, documents)
+    return f"reset {name} to page 0"
+
+
 def page_label(state):
     current = int(state["current_page"])
     if current < 1:
@@ -375,6 +381,7 @@ def help_text(state):
         navigation.append("  p  previous: copy the previous page")
     if has_current_page(state):
         navigation.append("  c  current: copy the current page again")
+        navigation.append("  r  reset: go back to page 0 without copying")
 
     return (
         """
@@ -427,6 +434,8 @@ def interactive_document(name, state, documents):
                 print_action(set_page(name, state, documents, int(raw_value)))
             elif key == "m":
                 print_action(set_mode(name, state, documents))
+            elif key == "r":
+                print_action(reset_page(name, state, documents))
             elif key == "s":
                 print_status(name, state)
             elif key in {"\n", "\r", " "}:
@@ -435,6 +444,8 @@ def interactive_document(name, state, documents):
                 print("unknown key, press h for help")
 
             if not had_current_page and has_current_page(state):
+                print(help_text(state))
+            elif had_current_page and not has_current_page(state):
                 print(help_text(state))
         except ValueError:
             print("invalid page number")

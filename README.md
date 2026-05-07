@@ -37,10 +37,11 @@ Common keys:
 - `n`: copy the next page
 - `p`: copy the previous page, available from page 2
 - `c`: copy the current page again, available from page 1
+- `r`: reset to page 0, available from page 1
 - `g`: jump to a page and copy it
 - `m`: switch between image copying and extracted-text copying
 - `s`: show the current state
 - `h`: show help
 - `q`: quit cleanly
 
-The iterator starts at page 0, so pressing `n` first copies page 1. The `c` key appears on page 1, and `p` appears on page 2.
+The iterator starts at page 0, so pressing `n` first copies page 1. The `c` and `r` keys appear on page 1, and `p` appears on page 2.
