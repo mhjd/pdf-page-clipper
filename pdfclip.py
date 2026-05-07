@@ -13,6 +13,7 @@ DEFAULT_DPI = 200
 PDF_DIR = "pdfs"
 STATE_FILE = "state.yml"
 VALID_MODES = {"image", "text"}
+RULE = "-" * 48
 
 
 class AppError(Exception):
@@ -296,6 +297,7 @@ def print_status(name, state):
 
 def print_selector(documents):
     print("pdf-page-clipper")
+    print(RULE)
     print()
     print("PDFs")
     if documents:
@@ -381,7 +383,10 @@ def print_action(message):
 
 
 def interactive_document(name, state, documents):
+    print()
+    print(RULE)
     print("pdf-page-clipper")
+    print(RULE)
     print_status(name, state)
     print(help_text(state))
 
@@ -430,7 +435,7 @@ def read_choice(default, count):
             return str(default)
         return key
 
-    raw_choice = prompt_with_default("Choice", default)
+    raw_choice = input(f"Choice [{default}] > ").strip() or str(default)
     if raw_choice in {"q", "\x1b"}:
         return None
     return raw_choice
