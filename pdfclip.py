@@ -350,6 +350,15 @@ def discover_projects(root):
     return projects
 
 
+def discover_unimported_pdfs(root):
+    pdfs = []
+    for candidate in sorted(root.glob("*.pdf")):
+        if default_images_dir(candidate).exists():
+            continue
+        pdfs.append(candidate)
+    return pdfs
+
+
 def project_label(state):
     pdf_name = Path(state["pdf"]).name
     folder_name = Path(state["images_dir"]).name
@@ -368,7 +377,14 @@ def page_label(state):
     return f"page {current}/{state['page_count']}"
 
 
+def pdf_label(pdf_path):
+    return f"{pdf_path.name}  à importer"
+
+
 def read_key():
+    if not sys.stdin.isatty():
+        return sys.stdin.read(1)
+
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
@@ -376,6 +392,14 @@ def read_key():
         return sys.stdin.read(1)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+
+def key_name(key):
+    if key == "\x1b":
+        return "Échap"
+    if key in {"\n", "\r"}:
+        return ""
+    return key
 
 
 def prompt_with_default(prompt, default):
@@ -416,7 +440,8 @@ Touches:
   r  render: génère les images manquantes
   s  status: affiche l'état
   h  help: affiche cette aide
-  q  quit
+  q  quit: quitte proprement
+  Échap  quit: quitte proprement
 """
     )
 
@@ -435,10 +460,10 @@ def interactive_state(state):
     while True:
         print(f"[{state['mode']}] {page_label(state)} > ", end="", flush=True)
         key = read_key()
-        print(key)
+        print(key_name(key))
 
         try:
-            if key == "q":
+            if key in {"q", "\x1b"}:
                 print("fin")
                 return
             if key == "h":
@@ -483,26 +508,64 @@ def interactive(pdf_path, images_dir=None, dpi=DEFAULT_DPI):
 
 def choose_project(dpi=DEFAULT_DPI):
     projects = discover_projects(Path.cwd())
-    if not projects:
-        print("Aucun dossier pdfclip trouvé.")
-        print('Pour en créer un: make import PDF="fleurs du mal.pdf"')
+    pdfs = discover_unimported_pdfs(Path.cwd())
+    choices = [("project", project) for project in projects]
+    choices.extend(("pdf", pdf_path) for pdf_path in pdfs)
+
+    if not choices:
+        print("Aucun dossier pdfclip ou PDF à importer trouvé.")
         return
 
-    print("Dossiers disponibles:")
-    for index, state in enumerate(projects, start=1):
-        print(f"  {index}. {project_label(state)}")
+    print("Dossiers et PDF disponibles:")
+    for index, (kind, value) in enumerate(choices, start=1):
+        if kind == "project":
+            label = project_label(value)
+        else:
+            label = pdf_label(value)
+        print(f"  {index}. {label}")
+    print("  q. quitter")
+    print("  Échap. quitter")
 
     default = 1
-    raw_choice = prompt_with_default("Dossier", default)
+    raw_choice = read_choice(default, len(choices))
+    if raw_choice is None:
+        print("fin")
+        return
+
     try:
         choice = int(raw_choice)
     except ValueError:
         raise AppError("choix invalide")
 
-    if choice < 1 or choice > len(projects):
+    if choice < 1 or choice > len(choices):
         raise AppError("choix hors liste")
 
-    interactive_state(projects[choice - 1])
+    kind, value = choices[choice - 1]
+    if kind == "pdf":
+        state, rendered = import_pdf(value, None, dpi)
+        print(f"dossier créé: {state['images_dir']}")
+        print(f"images générées: {rendered} / {state['page_count']}")
+    else:
+        state = value
+
+    interactive_state(state)
+
+
+def read_choice(default, count):
+    if count <= 9:
+        print(f"Choix [{default}] > ", end="", flush=True)
+        key = read_key()
+        print(key_name(key))
+        if key in {"q", "\x1b"}:
+            return None
+        if key in {"\n", "\r"}:
+            return str(default)
+        return key
+
+    raw_choice = prompt_with_default("Choix", default)
+    if raw_choice in {"q", "\x1b"}:
+        return None
+    return raw_choice
 
 
 def build_parser():

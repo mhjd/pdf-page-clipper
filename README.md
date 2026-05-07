@@ -28,4 +28,8 @@ make status
 
 `make import` creates one folder per PDF and refuses to overwrite an existing folder.
 
+`make` lists imported PDF folders and PDF files in the current directory that still need to be imported.
+
 In interactive mode, the iterator starts before page 1, so pressing `n` first copies page 1.
+
+Press `q` or `Esc` to quit cleanly from the selection screen or the interactive page screen.
