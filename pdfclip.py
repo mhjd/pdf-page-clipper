@@ -119,8 +119,8 @@ def load_state(pdf_path, images_dir=None, dpi=DEFAULT_DPI):
     mode = existing.get("mode", "image")
     if mode not in VALID_MODES:
         mode = "image"
-    current_page = int(existing.get("current_page", 1))
-    current_page = clamp_page(current_page, count)
+    current_page = int(existing.get("current_page", 0))
+    current_page = clamp_state_page(current_page, count)
 
     state = {
         "pdf": str(pdf_path),
@@ -171,6 +171,10 @@ def load_target_state(target=None, dpi=DEFAULT_DPI):
 
 def clamp_page(page, count):
     return max(1, min(int(page), int(count)))
+
+
+def clamp_state_page(page, count):
+    return max(0, min(int(page), int(count)))
 
 
 def page_image_path(images_dir, page):
@@ -224,7 +228,7 @@ def import_pdf(pdf_path, images_dir=None, dpi=DEFAULT_DPI):
     state = {
         "pdf": str(pdf_path),
         "images_dir": str(images_dir),
-        "current_page": 1,
+        "current_page": 0,
         "page_count": int(count),
         "mode": "image",
         "dpi": int(dpi),
@@ -282,6 +286,9 @@ set the clipboard to (read imageFile as TIFF picture)
 
 def copy_current(state):
     page = int(state["current_page"])
+    if page < 1:
+        raise AppError("aucune page courante; appuie sur n pour copier la page 1")
+
     mode = state["mode"]
     if mode == "text":
         chars = copy_page_text(state)
@@ -294,7 +301,10 @@ def copy_current(state):
 
 
 def move_and_copy(state, delta):
-    state["current_page"] = clamp_page(int(state["current_page"]) + delta, int(state["page_count"]))
+    current = int(state["current_page"])
+    if current < 1 and delta <= 0:
+        raise AppError("aucune page précédente; appuie sur n pour copier la page 1")
+    state["current_page"] = clamp_page(current + delta, int(state["page_count"]))
     write_state(Path(state["images_dir"]), state)
     return copy_current(state)
 
@@ -319,7 +329,11 @@ def print_status(state):
     images_dir = Path(state["images_dir"])
     print(f"PDF: {state['pdf']}")
     print(f"Dossier: {images_dir}")
-    print(f"Page: {state['current_page']} / {state['page_count']}")
+    if int(state["current_page"]) < 1:
+        print(f"Page courante: aucune")
+        print(f"Prochaine page: 1 / {state['page_count']}")
+    else:
+        print(f"Page: {state['current_page']} / {state['page_count']}")
     print(f"Mode: {state['mode']}")
     print(f"Images générées: {rendered_page_count(images_dir)} / {state['page_count']}")
 
@@ -341,10 +355,17 @@ def project_label(state):
     folder_name = Path(state["images_dir"]).name
     return (
         f"{folder_name}  "
-        f"page {state['current_page']}/{state['page_count']}  "
+        f"{page_label(state)}  "
         f"mode {state['mode']}  "
         f"({pdf_name})"
     )
+
+
+def page_label(state):
+    current = int(state["current_page"])
+    if current < 1:
+        return f"avant page 1/{state['page_count']}"
+    return f"page {current}/{state['page_count']}"
 
 
 def read_key():
@@ -396,7 +417,7 @@ def interactive_state(state):
     print(help_text())
 
     while True:
-        print(f"[{state['mode']}] page {state['current_page']}/{state['page_count']} > ", end="", flush=True)
+        print(f"[{state['mode']}] {page_label(state)} > ", end="", flush=True)
         key = read_key()
         print(key)
 
