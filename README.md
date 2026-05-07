@@ -1,6 +1,6 @@
 # pdf-page-clipper
 
-A minimal command-line tool to copy PDF pages as clipboard-ready images or extracted text.
+A minimal interactive tool for copying PDF pages as images or extracted text.
 
 It is built for translation workflows where you move page by page through a PDF and paste each page into another tool.
 
@@ -12,24 +12,35 @@ It is built for translation workflows where you move page by page through a PDF 
 
 No third-party Python package is required.
 
-## Usage
+## Setup
 
-```sh
-make import PDF="document.pdf"
-make
-make next
-make previous
-make current
-make set PAGE=12
-make image
-make text
-make status
+Put your PDF files in the `pdfs/` folder:
+
+```text
+pdfs/
+  document.pdf
+  another-document.pdf
 ```
 
-`make import` creates one folder per PDF and refuses to overwrite an existing folder.
+## Interactive Usage
 
-`make` lists imported PDF folders and PDF files in the current directory that still need to be imported.
+Run:
 
-In interactive mode, the iterator starts before page 1, so pressing `n` first copies page 1.
+```sh
+make
+```
 
-Press `q` to quit cleanly from the selection screen or the interactive page screen.
+Select a PDF, then use the keys shown by the app.
+
+Common keys:
+
+- `n`: copy the next page
+- `p`: copy the previous page, available after the first page
+- `c`: copy the current page again, available after the first page
+- `g`: jump to a page and copy it
+- `m`: switch between image copying and extracted-text copying
+- `s`: show the current state
+- `h`: show help
+- `q`: quit cleanly
+
+The iterator starts before page 1, so pressing `n` first copies page 1.

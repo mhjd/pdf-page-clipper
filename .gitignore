@@ -1,9 +1,12 @@
 # Local runtime state
 .pdfclip.yml
 *_pages/
+pdfs/state.yml
 
 # Input documents and generated assets
 *.pdf
+!pdfs/
+!pdfs/.gitkeep
 *.png
 *.jpg
 *.jpeg
